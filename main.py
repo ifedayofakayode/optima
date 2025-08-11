@@ -7,7 +7,14 @@ from dotenv import load_dotenv
 
 # LOAD API KEY
 load_dotenv()
-OpenAI.api_key = os.getenv("OPENAI_API_KEY")
+# OpenAI.api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("OPENAI_API_KEY", st.secrets.get("OPENAI_API_KEY"))
+
+if not api_key:
+    st.error("❌ OpenAI API key not found! Please set it in `.env` locally or Streamlit Secrets on cloud.")
+    st.stop()
+
+client = OpenAI(api_key=api_key)
 
 #DEFINE A FUNCTION TO READ PDF RESUME
 def extract_text_from_pdf(file ):
