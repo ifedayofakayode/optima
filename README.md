@@ -7,7 +7,7 @@ This project is a web application that uses a large language model (LLM) to anal
 
 ### 🚀 Live Demo
 
-👉 [Launch the App](https://your-streamlit-cloud-link-here) 
+👉 [Launch the App](https://optima-ai-resume-analyzer.streamlit.app/)
 
 ---
 
