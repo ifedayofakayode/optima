@@ -27,40 +27,40 @@ def extract_text_from_pdf(file ):
 # CREATE THE GPT PROMPT
 def create_prompt(resume, job_description):
     return f"""
-You are an expert career coach and professional resume analyst with deep knowledge of recruitment best practices and Applicant Tracking Systems (ATS).
-Your task is to evaluate how well a candidate's resume matches a given job description.
+You are an expert career coach and ATS expert.
+You MUST return valid JSON only.
 
-Instructions:
-1.  Compare the **Resume** and **Job Description** provided below.
-2.  Rate the overall match between the resume and the job description on a scale of 1 to 100, where:
-    - 1 = extremely poor match
-    - 100 = perfect match
-3.  Identify the **key skilss, qualifications, certifications, or experiences** from the job description that are missing of insufficiently represented in the resume.
-4.  Suggest **specific, actionable improvements** to the resume so it more closely aligns with the job description. Include:
-    - Keywords or phrases to add
-    - Sections to expand or adjust
-    - Achievements or metrics to highlight
-5.  Keep feedback concise but detailed enough to guide meaningful improvements.
+Compare the Resume and Job Description.
+
+Return JSON in this exact format:
+{{
+  "match_score": 85,
+  "ats_score": 70,
+  "missing_keywords": ["python", "sql", "team leadership"],
+  "strengths": ["strong experience with...", "..."],
+  "critical_gaps": ["No mention of..."],
+  "improvements": ["Add keyword X to experience section", "Quantify achievement Y"]
+}}
 
 Resume:
 {resume}
 
-Job desriptions:
+Job Description:
 {job_description}
 """
 
 # CALL GPT WITH OPENAI API
 def analyze_resume(resume_text, jd_text):
     prompt = create_prompt(resume_text, jd_text)
-    client = OpenAI()
     response = client.chat.completions.create(
         model = "gpt-4o-mini",
         messages = [
-            {"role": "system", "content": "You are a helpful HR assistant"},
+            {"role": "system", "content": "You are a helpful HR assistant. You always return valid JSON."},
             {"role": "user", "content": prompt}
         ],
         temperature = 0.4,
-        max_tokens = 800
+        max_tokens = 1500,
+        response_format={"type": "json_object"}
     )
     return response.choices[0].message.content
 
