@@ -10,7 +10,13 @@ MAX_FILE_SIZE_MB = 5  # Maximum file size in megabytes
 
 # LOAD API KEY
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY", st.secrets.get("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except Exception:
+        api_key = None
 
 if not api_key:
     st.error("❌ OpenAI API key not found! Please set it in `.env` locally or Streamlit Secrets on cloud.")
@@ -54,13 +60,12 @@ def analyze_resume(resume_text, jd_text):
     prompt = create_prompt(resume_text, jd_text)
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-6-luna",
             messages=[
                 {"role": "system", "content": "You are a helpful HR assistant. Reply with JSON only."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            max_tokens=1500,
+            max_completion_tokens=4000,
             response_format={"type": "json_object"}
         )
         return json.loads(response.choices[0].message.content)
