@@ -8,6 +8,8 @@ from openai import OpenAI
 from core.llm import analyze_resume
 from core.pdf_reader import extract_text_from_pdf, has_readable_text
 
+from core.scoring import compute_overall_score, score_band
+
 MAX_FILE_SIZE_MB = 5  # Maximum file size in megabytes
 
 # LOAD API KEY
@@ -55,26 +57,33 @@ if analyze_button:
         if result is None:
             st.error("Something went wrong while analyzing your resume. Please try again in a moment.")
         else:
-            st.subheader("📋 AI Feedback")
+            overall = compute_overall_score(result)
 
-            col1, col2 = st.columns(2)
-            col1.metric("Match Score", f"{result.get('match_score', 0)}/100")
-            col2.metric("ATS Score", f"{result.get('ats_score', 0)}/100")
+            st.subheader("📋 Your Results")
+            st.metric("Overall Match", f"{overall}/100")
+            st.progress(overall / 100)
+            st.caption(score_band(overall))
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Skills", result.skills_score)
+            c2.metric("Experience", result.experience_score)
+            c3.metric("Keywords", result.keyword_score)
+            c4.metric("Achievements", result.achievements_score)
 
             st.markdown("### ✅ Strengths")
-            for item in result.get("strengths", []):
-                st.write(f"- {item}")
-
-            st.markdown("### ⚠️ Critical Gaps")
-            for item in result.get("critical_gaps", []):
+            for item in result.strengths:
                 st.write(f"- {item}")
 
             st.markdown("### 🔑 Missing Keywords")
-            keywords = result.get("missing_keywords", [])
-            st.write(", ".join(keywords) if keywords else "None found.")
+            icons = {"high": "🔴", "medium": "🟠", "low": "🟢"}
+            order = ["high", "medium", "low"]
+            for gap in sorted(result.missing_keywords, key=lambda g: order.index(g.importance)):
+                with st.expander(f"{icons[gap.importance]} {gap.keyword} ({gap.importance} priority)"):
+                    st.write(f"**Why it matters:** {gap.why_it_matters}")
+                    st.write(f"**What to do:** {gap.suggestion}")
 
-            st.markdown("### 🛠 Suggested Improvements")
-            for item in result.get("improvements", []):
+            st.markdown("### 🛠 Top Fixes")
+            for item in result.top_fixes:
                 st.write(f"- {item}")
     else:
         st.warning("Please upload a resume and enter a job description.")
