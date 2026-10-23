@@ -1,4 +1,5 @@
 # IMPORT LIBRARIES
+import hashlib
 import os
 
 import streamlit as st
@@ -8,9 +9,10 @@ from openai import OpenAI
 from core.llm import analyze_resume
 from core.pdf_reader import extract_text_from_pdf, has_readable_text
 
-from core.scoring import compute_overall_score, score_band
+from core.scoring import compute_overall_score, requirements_score, score_band
 
 MAX_FILE_SIZE_MB = 5  # Maximum file size in megabytes
+MAX_CACHE_ENTRIES = 100  # Maximum number of entries to keep in the cache
 
 # LOAD API KEY
 load_dotenv()
@@ -27,6 +29,10 @@ if not api_key:
     st.stop()
 
 client = OpenAI(api_key=api_key, timeout=60)
+@st.cache_resource
+def get_result_cache():
+    """A dictionary that survives button clicks while the app is running."""
+    return {}
 
 # BUILD THE WEB INTERFACE WITH STREAMLIT
 st.set_page_config(page_title="Optima", page_icon="🤖")
@@ -52,7 +58,17 @@ if analyze_button:
                 st.error("We couldn't read text from this PDF. Try exporting your resume as a text-based PDF from Word or Google Docs.")
                 st.stop()
 
-            result = analyze_resume(client, resume_text, jd_input)
+            cache = get_result_cache()
+            key = hashlib.sha256((resume_text + "||" + jd_input).encode()).hexdigest()
+            result = cache.get(key)
+            if result is None:
+                result = analyze_resume(client, resume_text, jd_input)
+                if result is not None:
+                    if len(cache) >= MAX_CACHE_ENTRIES:
+                        # Remove the oldest entry in the cache
+                        oldest_key = next(iter(cache))
+                        cache.pop(oldest_key)
+                    cache[key] = result
 
         if result is None:
             st.error("Something went wrong while analyzing your resume. Please try again in a moment.")
@@ -64,23 +80,29 @@ if analyze_button:
             st.progress(overall / 100)
             st.caption(score_band(overall))
 
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Skills", result.skills_score)
-            c2.metric("Experience", result.experience_score)
-            c3.metric("Keywords", result.keyword_score)
-            c4.metric("Achievements", result.achievements_score)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Requirements met", f"{requirements_score(result)}%")
+            c2.metric("Experience fit", f"{result.experience_level}/5")
+            c3.metric("Achievements", f"{result.achievements_level}/5")
 
             st.markdown("### ✅ Strengths")
             for item in result.strengths:
                 st.write(f"- {item}")
 
-            st.markdown("### 🔑 Missing Keywords")
-            icons = {"high": "🔴", "medium": "🟠", "low": "🟢"}
+            missing = [r for r in result.requirements if not r.found]
+            st.markdown("### 🔑 Missing Requirements")
+            if not missing:
+                st.write("Every requirement was found in your resume.")
             order = ["high", "medium", "low"]
-            for gap in sorted(result.missing_keywords, key=lambda g: order.index(g.importance)):
-                with st.expander(f"{icons[gap.importance]} {gap.keyword} ({gap.importance} priority)"):
-                    st.write(f"**Why it matters:** {gap.why_it_matters}")
-                    st.write(f"**What to do:** {gap.suggestion}")
+            icons = {"high": "🔴", "medium": "🟠", "low": "🟢"}
+            for r in sorted(missing, key=lambda r: order.index(r.importance)):
+                with st.expander(f"{icons[r.importance]} {r.name} ({r.importance} priority)"):
+                    st.write(f"**What to do:** {r.suggestion}")
+
+            with st.expander("See the full checklist"):
+                for r in result.requirements:
+                    mark = "✅" if r.found else "❌"
+                    st.write(f"{mark} **{r.name}** ({r.importance})" + (f": {r.evidence}" if r.evidence else ""))
 
             st.markdown("### 🛠 Top Fixes")
             for item in result.top_fixes:

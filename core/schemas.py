@@ -3,20 +3,18 @@ from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
-class Gap(BaseModel):
-    """One missing keyword or skill, with advice on fixing it."""
-    keyword: str
+class Requirement(BaseModel):
+    """One requirement from the job description, checked against the resume."""
+    name: str
     importance: Literal["high", "medium", "low"]
-    why_it_matters: str
-    suggestion: str
+    found: bool          # True only if the resume clearly shows it
+    evidence: str        # short phrase from the resume proving it ("" if not found)
+    suggestion: str      # how to add it truthfully ("" if found)
 
 
 class AnalysisResult(BaseModel):
-    """The full analysis of one resume against one job description."""
-    skills_score: int = Field(ge=0, le=100)
-    experience_score: int = Field(ge=0, le=100)
-    keyword_score: int = Field(ge=0, le=100)
-    achievements_score: int = Field(ge=0, le=100)
-    missing_keywords: List[Gap]
+    requirements: List[Requirement]
+    experience_level: int = Field(ge=1, le=5)
+    achievements_level: int = Field(ge=1, le=5)
     strengths: List[str]
     top_fixes: List[str]

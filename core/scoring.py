@@ -1,10 +1,21 @@
+IMPORTANCE_WEIGHT = {"high": 3, "medium": 2, "low": 1}
+
+
+def requirements_score(result):
+    """Percentage of requirements met, counting important ones more."""
+    total = sum(IMPORTANCE_WEIGHT[r.importance] for r in result.requirements)
+    if total == 0:
+        return 0
+    met = sum(IMPORTANCE_WEIGHT[r.importance] for r in result.requirements if r.found)
+    return round(100 * met / total)
+
+
 def compute_overall_score(result):
-    """Combines the four sub-scores using fixed weights."""
+    """Combines the three parts using fixed weights."""
     overall = (
-        result.skills_score * 0.40
-        + result.experience_score * 0.25
-        + result.keyword_score * 0.20
-        + result.achievements_score * 0.15
+        requirements_score(result) * 0.60
+        + result.experience_level * 20 * 0.25
+        + result.achievements_level * 20 * 0.15
     )
     return round(overall)
 
