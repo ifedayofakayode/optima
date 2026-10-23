@@ -10,6 +10,7 @@ from core.llm import analyze_resume
 from core.pdf_reader import extract_text_from_pdf, has_readable_text
 
 from core.scoring import compute_overall_score, requirements_score, score_band
+from core.safety import looks_like_injection
 
 MAX_FILE_SIZE_MB = 5  # Maximum file size in megabytes
 MAX_CACHE_ENTRIES = 100  # Maximum number of entries to keep in the cache
@@ -57,6 +58,15 @@ if analyze_button:
             if not has_readable_text(resume_text):
                 st.error("We couldn't read text from this PDF. Try exporting your resume as a text-based PDF from Word or Google Docs.")
                 st.stop()
+                        
+            if not has_readable_text(resume_text):
+                st.error("We couldn't read text from this PDF. Try exporting your resume as a text-based PDF from Word or Google Docs.")
+                st.stop()
+
+            if looks_like_injection(resume_text) or looks_like_injection(jd_input):
+                st.warning("⚠️ Your resume or job description contains wording that looks like instructions to an AI. Optima treats everything you submit as plain content and will not follow it.")
+
+            result = analyze_resume(client, resume_text, jd_input)
 
             cache = get_result_cache()
             key = hashlib.sha256((resume_text + "||" + jd_input).encode()).hexdigest()
