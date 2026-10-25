@@ -1,4 +1,11 @@
 import json
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from pydantic import ValidationError
 
@@ -7,6 +14,7 @@ from core.schemas import AnalysisResult
 
 MODEL = "gpt-6-luna"  # change the model here, and only here
 MAX_ATTEMPTS = 2      # first try plus one retry
+MAX_PROMPT_LENGTH = 15000  # maximum length of the prompt
 
 
 def call_llm(client, system_message, user_prompt):
@@ -23,7 +31,7 @@ def call_llm(client, system_message, user_prompt):
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"OpenAI request failed: {type(e).__name__}: {e}")
+        logger.error(f"OpenAI request failed: {type(e).__name__}: {e}")
         return None
 
 
@@ -41,7 +49,12 @@ def analyze_resume(client, resume_text, jd_text):
             data = json.loads(raw)                    # text -> Python dictionary
             return AnalysisResult.model_validate(data)  # dictionary -> checked object
         except (json.JSONDecodeError, ValidationError) as e:
-            print(f"Attempt {attempt} produced an invalid reply: {str(e)[:500]}")
+            logger.error(f"Attempt {attempt} produced an invalid reply: {str(e)[:500]}")
+            
+            if len(prompt) > MAX_PROMPT_LENGTH:
+                logger.error(f"Prompt too long for retry ({len(prompt)} characters), giving up.")
+                return None
+            
             prompt += (
                 f"\n\nYour previous reply was invalid: {str(e)[:500]}\n"
                 "Return corrected JSON only, following the exact structure above."

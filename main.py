@@ -22,7 +22,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
-    except Exception:
+    except (KeyError, AttributeError):
         api_key = None
 
 if not api_key:
@@ -57,20 +57,18 @@ if analyze_button:
 
             if not has_readable_text(resume_text):
                 st.error("We couldn't read text from this PDF. Try exporting your resume as a text-based PDF from Word or Google Docs.")
-                st.stop()
-                        
-            if not has_readable_text(resume_text):
-                st.error("We couldn't read text from this PDF. Try exporting your resume as a text-based PDF from Word or Google Docs.")
-                st.stop()
-
+                st.stop()                        
+            
             if looks_like_injection(resume_text) or looks_like_injection(jd_input):
                 st.warning("⚠️ Your resume or job description contains wording that looks like instructions to an AI. Optima treats everything you submit as plain content and will not follow it.")
 
-            result = analyze_resume(client, resume_text, jd_input)
-
             cache = get_result_cache()
-            key = hashlib.sha256((resume_text + "||" + jd_input).encode()).hexdigest()
+            resume_hash = hashlib.sha256(resume_text.encode()).hexdigest()
+            jd_hash = hashlib.sha256(jd_input.encode()).hexdigest()
+            key = hashlib.sha256(f"{resume_hash}||{jd_hash}".encode()).hexdigest()
+
             result = cache.get(key)
+
             if result is None:
                 result = analyze_resume(client, resume_text, jd_input)
                 if result is not None:

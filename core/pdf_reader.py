@@ -5,10 +5,19 @@ MIN_TEXT_LENGTH = 200  # fewer characters than this means the PDF is probably a 
 
 def extract_text_from_pdf(file):
     """Takes an uploaded PDF file and returns all its text as one string."""
-    with pymupdf.open(stream=file.read(), filetype="pdf") as doc:
+
+    if not hasattr(file, 'read'):
+        raise ValueError("The provided file object is not readable")
+
+    try:
+        file_content = file.read()
+    except Exception as e:
+        raise ValueError(f"Error reading the file: {e}")
+    
+    with pymupdf.open(stream=file_content, filetype="pdf") as doc:
         text = ""
-        for page in doc:
-            text += page.get_text()
+        text_parts = [page.get_text() for page in doc]
+        text = "".join(text_parts)
     return text
 
 

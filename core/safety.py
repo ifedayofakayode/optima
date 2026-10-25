@@ -1,3 +1,5 @@
+import re
+
 SUSPICIOUS_PHRASES = [
     "ignore previous instructions",
     "ignore all previous",
@@ -21,5 +23,5 @@ def clean_untrusted_text(text):
 
 def looks_like_injection(text):
     """Returns True if the text contains a phrase commonly used to give orders to an AI."""
-    normalized = " ".join(text.lower().split())  # lowercase, and collapse line breaks and spaces
+    normalized = re.sub(r'\s+', ' ', text.lower())
     return any(phrase in normalized for phrase in SUSPICIOUS_PHRASES)
