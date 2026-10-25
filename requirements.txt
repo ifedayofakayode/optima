@@ -3,3 +3,5 @@ pymupdf
 openai
 python-dotenv
 pydantic
+supabase
+supabase

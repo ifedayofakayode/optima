@@ -6,6 +6,8 @@ import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from services import auth
+
 from core.llm import analyze_resume
 from core.pdf_reader import extract_text_from_pdf, has_readable_text
 
@@ -36,8 +38,46 @@ def get_result_cache():
     return {}
 
 # BUILD THE WEB INTERFACE WITH STREAMLIT
+def show_login_screen():
+    st.write("Log in or create a free account to analyze your resume.")
+    login_tab, signup_tab = st.tabs(["Log in", "Sign up"])
+
+    with login_tab:
+        with st.form("login_form"):
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Log in")
+        if submitted:
+            ok, message = auth.sign_in(email.strip(), password)
+            if ok:
+                st.rerun()
+            else:
+                st.error(message)
+
+    with signup_tab:
+        with st.form("signup_form"):
+            new_email = st.text_input("Email", key="signup_email")
+            new_password = st.text_input("Choose a password (8+ characters)", type="password", key="signup_password")
+            created = st.form_submit_button("Create account")
+        if created:
+            ok, message = auth.sign_up(new_email.strip(), new_password)
+            if ok:
+                st.success(message)
+                if auth.current_user() is not None:
+                    st.rerun()
+            else:
+                st.error(message)
 st.set_page_config(page_title="Optima", page_icon="🤖")
 st.title("Optima")
+user = auth.current_user()
+if user is None:
+    show_login_screen()
+    st.stop()
+
+st.sidebar.write(f"Logged in as **{user.email}**")
+if st.sidebar.button("Log out"):
+    auth.sign_out()
+    st.rerun()
 st.write("**AI-Powered Resume Analyzer**")
 st.write("Upload your resume and paste a job description. Let AI tell you how well you match!")
 
