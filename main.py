@@ -9,9 +9,10 @@ from openai import OpenAI
 from services import auth
 
 from core.llm import analyze_resume
-from core.pdf_reader import extract_text_from_pdf, has_readable_text
+from core.pdf_reader import inspect_pdf, has_readable_text
+from core.rules import run_all_checks
 
-from core.scoring import compute_overall_score, requirements_score, score_band
+from core.scoring import compute_overall_score, requirements_score, score_band, readiness_score
 from core.safety import looks_like_injection
 
 MAX_FILE_SIZE_MB = 5  # Maximum file size in megabytes
@@ -67,6 +68,26 @@ def show_login_screen():
                     st.rerun()
             else:
                 st.error(message)
+SEVERITY_ORDER = ["high", "medium", "low"]
+SEVERITY_ICON = {"high": "🔴", "medium": "🟠", "low": "🟢"}
+
+
+def show_flags(flags):
+    st.subheader("🌍 Remote Application Check")
+    st.caption("These checks use fixed rules, not AI, so the same CV always gets the same results.")
+
+    if not flags:
+        st.success("No common problems found. Your CV looks ready for remote applications.")
+        return
+
+    score = readiness_score(flags)
+    st.metric("Application Readiness", f"{score}/100")
+    st.progress(score / 100)
+
+    for flag in sorted(flags, key=lambda f: SEVERITY_ORDER.index(f.severity)):
+        with st.expander(f"{SEVERITY_ICON[flag.severity]} {flag.title}"):
+            st.write(f"**Why it matters:** {flag.why}")
+            st.write(f"**What to do:** {flag.fix}")
 st.set_page_config(page_title="Optima", page_icon="🤖")
 st.title("Optima")
 user = auth.current_user()
@@ -93,15 +114,19 @@ if analyze_button:
             st.stop()
 
         with st.spinner("Analyzing with AI..."):
-            resume_text = extract_text_from_pdf(resume_file)
+            pdf_info = inspect_pdf(resume_file.getvalue())
+            resume_text = pdf_info.text
 
             if not has_readable_text(resume_text):
                 st.error("We couldn't read text from this PDF. Try exporting your resume as a text-based PDF from Word or Google Docs.")
-                st.stop()                        
+                st.stop()
+
+            flags = run_all_checks(pdf_info)
+            result = analyze_resume(client, resume_text, jd_input)                        
             
             if looks_like_injection(resume_text) or looks_like_injection(jd_input):
                 st.warning("⚠️ Your resume or job description contains wording that looks like instructions to an AI. Optima treats everything you submit as plain content and will not follow it.")
-
+            
             cache = get_result_cache()
             resume_hash = hashlib.sha256(resume_text.encode()).hexdigest()
             jd_hash = hashlib.sha256(jd_input.encode()).hexdigest()
@@ -155,5 +180,7 @@ if analyze_button:
             st.markdown("### 🛠 Top Fixes")
             for item in result.top_fixes:
                 st.write(f"- {item}")
+                
+        show_flags(flags)
     else:
         st.warning("Please upload a resume and enter a job description.")

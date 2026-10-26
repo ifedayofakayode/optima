@@ -29,3 +29,11 @@ def score_band(score):
     if score >= 40:
         return "Needs significant work"
     return "Weak match for this role"
+
+SEVERITY_PENALTY = {"high": 15, "medium": 8, "low": 3}
+
+
+def readiness_score(flags):
+    """Starts at 100 and subtracts points for each flag found."""
+    penalty = sum(SEVERITY_PENALTY[flag.severity] for flag in flags)
+    return max(0, 100 - penalty)
