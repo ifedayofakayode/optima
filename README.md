@@ -15,6 +15,9 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - ✅ Enhanced PDF inspection to detect layout issues (photos, columns, tables)
 - ✅ Added unit tests for rule-based checks
 - ✅ Implemented application readiness scoring system
+- ✅ Integrated Supabase database for saving analysis history
+- ✅ Added usage tracking with free monthly limits
+- ✅ Implemented analysis history retrieval and management
 
 ---
 
@@ -49,6 +52,9 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - **Secure Authentication:** User sign-up and sign-in with email/password using Supabase.
 - **Session Management:** Maintains user sessions across page interactions.
 - **Password Security:** Enforces minimum password length (8 characters).
+- **Analysis History:** Saves all resume analyses to Supabase database for later review.
+- **Usage Tracking:** Tracks monthly usage with free-tier limits (2 analyses per month).
+- **History Management:** Users can view, delete, and manage their saved analyses.
 
 **Reliability and safety**
 - **Structured AI Output:** The AI returns JSON in a fixed format, validated with Pydantic. If a reply is invalid, Optima retries once with the error message included (with prompt length protection).
@@ -100,6 +106,10 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
    - Copy "Project URL" (ensure it doesn't include `/rest/v1` at the end)
    - Copy "anon public" key
 
+   **Set up database tables:**
+   - In your Supabase project, go to SQL Editor
+   - Run the SQL commands to create the `analyses` and `usage` tables (see Database Setup section below)
+
    When deployed on Streamlit Cloud, add the keys under **Settings > Secrets** instead:
 ```
    OPENAI_API_KEY = "your_openai_api_key_here"
@@ -114,6 +124,58 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 **Optional: Run tests**
 ```
    pytest tests/
+```
+
+---
+
+### 🗄️ Database Setup
+
+After setting up your Supabase project, you need to create the required tables. Run this SQL in your Supabase SQL Editor:
+
+```sql
+-- Create the usage table (tracks monthly usage)
+CREATE TABLE public.usage (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create the analyses table (stores analysis results)
+CREATE TABLE public.analyses (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    job_label TEXT,
+    overall_score INTEGER NOT NULL,
+    result JSONB NOT NULL,
+    flags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analyses ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for usage table
+CREATE POLICY "Users can view their own usage"
+    ON public.usage FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own usage"
+    ON public.usage FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+-- Create policies for analyses table
+CREATE POLICY "Users can view their own analyses"
+    ON public.analyses FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own analyses"
+    ON public.analyses FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own analyses"
+    ON public.analyses FOR DELETE
+    USING (auth.uid() = user_id);
 ```
 
 ---
@@ -135,7 +197,8 @@ optima/
 │   └── rules.py           # Rule-based checks for remote application readiness
 ├── services/
 │   ├── __init__.py
-│   └── auth.py            # User authentication with Supabase
+│   ├── auth.py            # User authentication with Supabase
+│   └── db.py              # Database operations (usage tracking, analysis history)
 ├── tests/
 │   └── test_rules.py      # Unit tests for rule-based checks
 ├── requirements.txt       # Dependencies
@@ -144,7 +207,7 @@ optima/
 └── README.md              # Project documentation
 ```
 
-The `core/` folder contains the app's logic and never imports Streamlit, so it can be reused later (for example in a separate backend) without changes. The `services/` folder handles external integrations like authentication. The `tests/` folder contains unit tests for rule-based checks.
+The `core/` folder contains the app's logic and never imports Streamlit, so it can be reused later (for example in a separate backend) without changes. The `services/` folder handles external integrations like authentication and database operations. The `tests/` folder contains unit tests for rule-based checks.
 
 ---
 
@@ -161,14 +224,16 @@ Optima is being developed for **African job seekers applying to remote roles**.
 - ✅ ATS layout analysis (photos, columns, tables detection)
 - ✅ Application readiness scoring system
 - ✅ Unit tests for rule-based checks
+- ✅ Database integration for saving analysis history
+- ✅ Usage tracking with free monthly limits
+- ✅ Analysis history retrieval and management
 
 **Planned work:**
-- 🔄 Saved analysis history per user (database integration)
-- Free-tier usage limits
 - Enhanced ATS-readability checks (keyword matching, formatting)
 - Bullet-point rewriter and tailored resume export
 - Application tracker
 - Local payment options and pricing
+- Premium tier with higher limits
 
 ---
 

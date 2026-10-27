@@ -6,7 +6,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from services import auth
+from services import auth, db
 
 from core.llm import analyze_resume
 from core.pdf_reader import inspect_pdf, has_readable_text
@@ -88,6 +88,45 @@ def show_flags(flags):
         with st.expander(f"{SEVERITY_ICON[flag.severity]} {flag.title}"):
             st.write(f"**Why it matters:** {flag.why}")
             st.write(f"**What to do:** {flag.fix}")
+
+def show_history():
+    st.subheader("🕑 Your Past Analyses")
+    rows = db.list_analyses(sb)
+    if not rows:
+        st.info("No saved analyses yet. Run one and it will appear here.")
+        return
+    for row in rows:
+        when = row["created_at"][:10]
+        label = row["job_label"] or "Untitled job"
+        with st.expander(f"{when} — {label} — score {row['overall_score']}/100"):
+            result = row["result"]
+            st.write("**Strengths**")
+            for item in result.get("strengths", []):
+                st.write(f"- {item}")
+            st.write("**Top fixes**")
+            for item in result.get("top_fixes", []):
+                st.write(f"- {item}")
+            if row.get("flags"):
+                st.write("**Remote application flags**")
+                for flag in row["flags"]:
+                    st.write(f"- {flag['title']}")
+
+
+def show_privacy():
+    st.subheader("🔒 Privacy")
+    st.write(
+        "Optima does not store your resume or job description. After each analysis we save only "
+        "the results (scores, suggestions and flags) so you can see your history. "
+        "We also keep a simple count of how many analyses you've run this month."
+    )
+    st.write("You can delete your saved history at any time.")
+    confirm = st.checkbox("I understand this permanently deletes my saved analyses")
+    if st.button("Delete my history", disabled=not confirm):
+        if db.delete_my_history(sb):
+            st.success("Your saved history has been deleted.")
+        else:
+            st.error("Something went wrong. Please try again.")
+
 st.set_page_config(page_title="Optima", page_icon="🤖")
 st.title("Optima")
 user = auth.current_user()
@@ -95,7 +134,23 @@ if user is None:
     show_login_screen()
     st.stop()
 
+sb = auth.get_client()
+used_this_month = db.count_this_month(sb)
+
 st.sidebar.write(f"Logged in as **{user.email}**")
+
+page = st.sidebar.radio("Menu", ["Analyze", "History", "Privacy"])
+
+if used_this_month is not None:
+    st.sidebar.caption(f"Free analyses used this month: {used_this_month}/{db.FREE_MONTHLY_LIMIT}")
+
+if page == "History":
+    show_history()
+    st.stop()
+if page == "Privacy":
+    show_privacy()
+    st.stop()
+
 if st.sidebar.button("Log out"):
     auth.sign_out()
     st.rerun()
@@ -104,6 +159,7 @@ st.write("Upload your resume and paste a job description. Let AI tell you how we
 
 resume_file = st.file_uploader("Upload Your Resume (PDF)", type=["pdf"])
 jd_input = st.text_area("Paste the Job Description here", height=250, max_chars=8000)
+job_label = st.text_input("Job title or company (optional, helps you find this later)", max_chars=100)
 
 # RUN THE ANALYSIS
 analyze_button = st.button("Analyze Match")
@@ -111,6 +167,13 @@ if analyze_button:
     if resume_file and jd_input:
         if resume_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
             st.error(f"Your file is too large. Please upload a PDF smaller than {MAX_FILE_SIZE_MB} MB.")
+            st.stop()
+
+        if used_this_month is None:
+            st.error("We couldn't check your usage right now. Please try again in a moment.")
+            st.stop()
+        if used_this_month >= db.FREE_MONTHLY_LIMIT:
+            st.warning(f"You've used your {db.FREE_MONTHLY_LIMIT} free analyses for this month. Paid plans are coming soon.")
             st.stop()
 
         with st.spinner("Analyzing with AI..."):
@@ -147,6 +210,15 @@ if analyze_button:
             st.error("Something went wrong while analyzing your resume. Please try again in a moment.")
         else:
             overall = compute_overall_score(result)
+
+            db.record_usage(sb)
+            db.save_analysis(
+                sb,
+                job_label.strip(),
+                overall,
+                result.model_dump(),
+                [dataclasses.asdict(f) for f in flags],
+            )
 
             st.subheader("📋 Your Results")
             st.metric("Overall Match", f"{overall}/100")
