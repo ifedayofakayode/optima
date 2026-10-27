@@ -11,6 +11,10 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - ✅ Added input validation and error handling
 - ✅ Optimized string normalization with regex
 - ✅ Added performance benchmarking tools
+- ✅ Built rule-based remote application readiness checks
+- ✅ Enhanced PDF inspection to detect layout issues (photos, columns, tables)
+- ✅ Added unit tests for rule-based checks
+- ✅ Implemented application readiness scoring system
 
 ---
 
@@ -24,12 +28,22 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 
 **Analysis**
 - **PDF Resume Processing:** Extracts text from uploaded PDF resumes with optimized string handling for faster processing.
+- **PDF Layout Inspection:** Detects layout issues that hurt ATS readability (photos, multi-column layouts, tables) and provides specific fixes.
 - **Scanned PDF Detection:** Detects image-only PDFs with no readable text and tells the user how to fix it, instead of sending empty text to the AI.
 - **Requirements Checklist:** The AI lists the 10 most important requirements in the job description and marks each one as found or not found in the resume, quoting the evidence. Users can open the full checklist to see exactly why they were scored the way they were.
 - **Consistent, Explainable Scoring:** The AI answers simple yes/no checks and rates experience and achievements on a defined 1-5 scale. The overall score is then calculated in code with fixed weights (requirements 60%, experience 25%, achievements 15%), with a plain-language label such as "Good match, with gaps to fix".
 - **Prioritized Missing Requirements:** Each gap is marked high, medium or low priority, with a suggestion for adding it truthfully.
 - **Strengths and Top Fixes:** Shows what the resume already does well, plus specific changes to make.
 - **Result Caching:** Submitting the same resume and job description again returns the same result instantly, without another AI call (fixed to check cache before API call).
+
+**Remote Application Readiness**
+- **Rule-Based Checks:** Uses fixed rules (not AI) to check for common CV habits that hurt remote applications, ensuring consistent results and no API costs.
+- **Personal Details Detection:** Flags unnecessary personal information (date of birth, age, marital status, religion, state of origin) that remote employers don't expect.
+- **Contact Information Validation:** Checks for email, LinkedIn profile, and international phone format.
+- **Section Heading Analysis:** Ensures standard ATS-friendly headings (Experience, Education, Skills) are present.
+- **Remote Work Evidence:** Identifies mentions of remote tools (Slack, Zoom, Jira, etc.) and remote work experience.
+- **Layout Analysis:** Detects photos, multi-column layouts, and tables that confuse ATS software.
+- **Application Readiness Score:** Provides a 0-100 score based on the severity of issues found, with specific actionable fixes for each flag.
 
 **User Accounts**
 - **Secure Authentication:** User sign-up and sign-in with email/password using Supabase.
@@ -55,6 +69,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - [Pydantic](https://docs.pydantic.dev/) — validation of the AI's structured output
 - [PyMuPDF](https://pymupdf.readthedocs.io/) — text extraction from PDF resumes
 - [python-dotenv](https://pypi.org/project/python-dotenv/) — secure API key management
+- [pytest](https://docs.pytest.org/) — unit testing framework
 
 ---
 
@@ -96,50 +111,61 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
    python -m streamlit run main.py
 ```
 
+**Optional: Run tests**
+```
+   pytest tests/
+```
+
 ---
 
 ### 📂 Project Structure
 
 ```
 optima/
-├── main.py                # Streamlit interface (screen only)
+├── main.py                # Streamlit interface with authentication and analysis
 ├── benchmark.py          # Performance benchmarking tools
 ├── core/
 │   ├── __init__.py
-│   ├── pdf_reader.py      # PDF text extraction and scanned-PDF detection (optimized)
+│   ├── pdf_reader.py      # PDF text extraction, layout inspection, and scanned-PDF detection
 │   ├── prompts.py         # All AI prompt text, including security rules
 │   ├── llm.py             # OpenAI calls, validation and retry with logging
 │   ├── schemas.py         # Pydantic models describing a valid analysis
-│   ├── scoring.py         # Weighted overall score and score labels
-│   └── safety.py          # Prompt injection cleaning and detection (regex optimized)
+│   ├── scoring.py         # Weighted overall score, score labels, and readiness scoring
+│   ├── safety.py          # Prompt injection cleaning and detection (regex optimized)
+│   └── rules.py           # Rule-based checks for remote application readiness
 ├── services/
 │   ├── __init__.py
 │   └── auth.py            # User authentication with Supabase
+├── tests/
+│   └── test_rules.py      # Unit tests for rule-based checks
 ├── requirements.txt       # Dependencies
 ├── .env.example           # API key template (safe to commit)
 ├── .gitignore             # Keeps .env out of GitHub
 └── README.md              # Project documentation
 ```
 
-The `core/` folder contains the app's logic and never imports Streamlit, so it can be reused later (for example in a separate backend) without changes. The `services/` folder handles external integrations like authentication.
+The `core/` folder contains the app's logic and never imports Streamlit, so it can be reused later (for example in a separate backend) without changes. The `services/` folder handles external integrations like authentication. The `tests/` folder contains unit tests for rule-based checks.
 
 ---
 
 ### 🗺️ Roadmap
 
-Optima is being developed for **African job seekers applying to remote roles**. 
+Optima is being developed for **African job seekers applying to remote roles**.
 
 **Completed:**
 - ✅ User accounts with secure authentication
 - ✅ Performance optimizations (caching, PDF extraction, string handling)
 - ✅ Structured logging and error handling
 - ✅ Input validation and security improvements
+- ✅ Rule-based CV checks for remote applications (personal details, contact info, headings)
+- ✅ ATS layout analysis (photos, columns, tables detection)
+- ✅ Application readiness scoring system
+- ✅ Unit tests for rule-based checks
 
 **Planned work:**
-- 🔄 Saved analysis history per user
+- 🔄 Saved analysis history per user (database integration)
 - Free-tier usage limits
-- Checks for common CV habits that hurt remote applications (photo, date of birth, "career objective" statements)
-- ATS-readability checks
+- Enhanced ATS-readability checks (keyword matching, formatting)
 - Bullet-point rewriter and tailored resume export
 - Application tracker
 - Local payment options and pricing

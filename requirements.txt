@@ -4,4 +4,4 @@ openai
 python-dotenv
 pydantic
 supabase
-supabase
+pytest
