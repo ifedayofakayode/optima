@@ -1,5 +1,6 @@
 import json
 import logging
+import sentry_sdk
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +33,7 @@ def call_llm(client, system_message, user_prompt):
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"OpenAI request failed: {type(e).__name__}: {e}")
+        sentry_sdk.capture_exception(e)
         return None
 
 

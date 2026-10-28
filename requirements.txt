@@ -5,3 +5,5 @@ python-dotenv
 pydantic
 supabase
 pytest
+sentry-sdk
+python-docx

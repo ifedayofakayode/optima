@@ -1,6 +1,8 @@
 # IMPORT LIBRARIES
 import hashlib
 import os
+import re
+import dataclasses
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -11,12 +13,24 @@ from services import auth, db
 from core.llm import analyze_resume
 from core.pdf_reader import inspect_pdf, has_readable_text
 from core.rules import run_all_checks
+from core.rewriter import rewrite_bullet
 
 from core.scoring import compute_overall_score, requirements_score, score_band, readiness_score
 from core.safety import looks_like_injection
 
 MAX_FILE_SIZE_MB = 5  # Maximum file size in megabytes
 MAX_CACHE_ENTRIES = 100  # Maximum number of entries to keep in the cache
+
+import sentry_sdk
+
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        # Enable performance monitoring
+        send_default_pii=False,
+        include_local_variables=False,
+    )
 
 # LOAD API KEY
 load_dotenv()
@@ -127,6 +141,79 @@ def show_privacy():
         else:
             st.error("Something went wrong. Please try again.")
 
+BULLET_MARKERS = ("•", "●", "▪", "■", "◦", "·", "-", "–", "*")
+
+
+def find_bullets(text):
+    """Pulls likely bullet points out of resume text."""
+    found = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith(BULLET_MARKERS):
+            line = line.lstrip("".join(BULLET_MARKERS) + " ")
+            if 25 <= len(line) <= 400:
+                found.append(line)
+    return found
+
+
+def show_rewriter():
+    st.subheader("✍️ Bullet Rewriter")
+    st.caption(
+        "Turn a weak resume bullet into a stronger one. Optima never invents numbers: "
+        "you fill in the [brackets] with your real figures."
+    )
+
+    plan = db.get_plan(sb)
+    used = db.count_this_month(sb, kind="rewrite")
+    if plan != "pro":
+        if used is None:
+            st.error("We couldn't check your usage right now. Please try again in a moment.")
+            return
+        st.caption(f"Free rewrites used this month: {used}/{db.FREE_REWRITES_PER_MONTH}")
+
+    picked = ""
+    upload = st.file_uploader("Optional: upload your resume to pick a bullet from it", type=["pdf"], key="rewrite_upload")
+    if upload and upload.size <= MAX_FILE_SIZE_MB * 1024 * 1024:
+        bullets = find_bullets(inspect_pdf(upload.getvalue()).text)
+        if bullets:
+            picked = st.selectbox("Pick a bullet", [""] + bullets)
+        else:
+            st.info("We couldn't find bullet points in that PDF. Paste one below instead.")
+
+    bullet = st.text_area("Resume bullet", value=picked, max_chars=500, height=100)
+    job_context = st.text_input("Target job title (optional)", max_chars=100)
+
+    if st.button("Rewrite"):
+        if len(bullet.strip()) < 15:
+            st.warning("Please enter a longer bullet point.")
+            return
+        if plan != "pro" and used >= db.FREE_REWRITES_PER_MONTH:
+            st.warning("You've used your free rewrites for this month. Paid plans are coming soon.")
+            return
+
+        with st.spinner("Rewriting..."):
+            result = rewrite_bullet(client, bullet.strip(), job_context.strip())
+
+        if result is None:
+            st.error("Something went wrong while rewriting. Please try again in a moment.")
+            return
+
+        db.record_usage(sb, kind="rewrite")
+
+        st.markdown("### What's weak about the original")
+        for item in result.problems:
+            st.write(f"- {item}")
+
+        st.markdown("### Stronger versions")
+        st.caption("Replace anything in [square brackets] with your real numbers. Use the copy button on the right.")
+        for r in result.rewrites:
+            st.write(f"**{r.approach}**")
+            st.code(r.text, language=None)
+
+        st.markdown("### Questions to help you find your real numbers")
+        for q in result.metric_questions:
+            st.write(f"- {q}")
+
 st.set_page_config(page_title="Optima", page_icon="🤖")
 st.title("Optima")
 user = auth.current_user()
@@ -139,7 +226,7 @@ used_this_month = db.count_this_month(sb)
 
 st.sidebar.write(f"Logged in as **{user.email}**")
 
-page = st.sidebar.radio("Menu", ["Analyze", "History", "Privacy"])
+page = st.sidebar.radio("Menu", ["Analyze", "Rewrite bullets","History", "Privacy"])
 
 if used_this_month is not None:
     st.sidebar.caption(f"Free analyses used this month: {used_this_month}/{db.FREE_MONTHLY_LIMIT}")
@@ -149,6 +236,9 @@ if page == "History":
     st.stop()
 if page == "Privacy":
     show_privacy()
+    st.stop()
+if page == "Rewrite bullets":
+    show_rewriter()
     st.stop()
 
 if st.sidebar.button("Log out"):

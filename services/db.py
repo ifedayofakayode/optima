@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
-FREE_MONTHLY_LIMIT = 2
+FREE_MONTHLY_LIMIT = 20
+FREE_REWRITES_LIMIT = 30
 
 
 def _month_start():
@@ -9,12 +10,13 @@ def _month_start():
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
 
-def count_this_month(sb):
-    """How many analyses this user has run this month. Returns None if we couldn't check."""
+def count_this_month(sb, kind="analysis"):
+    """How many uses of this kind this month. Returns None if we couldn't check."""
     try:
         response = (
             sb.table("usage")
             .select("id", count="exact")
+            .eq("kind", kind)
             .gte("created_at", _month_start())
             .execute()
         )
@@ -24,12 +26,22 @@ def count_this_month(sb):
         return None
 
 
-def record_usage(sb):
-    """Adds one to this user's count for the month."""
+def record_usage(sb, kind="analysis"):
+    """Adds one use of this kind for the user."""
     try:
-        sb.table("usage").insert({}).execute()
+        sb.table("usage").insert({"kind": kind}).execute()
     except Exception as e:
         print(f"Recording usage failed: {type(e).__name__}: {e}")
+
+def get_plan(sb):
+    """Returns 'free' or 'pro'. If anything goes wrong, treats the user as free."""
+    try:
+        response = sb.table("profiles").select("plan").limit(1).execute()
+        if response.data:
+            return response.data[0]["plan"]
+    except Exception as e:
+        print(f"Plan check failed: {type(e).__name__}: {e}")
+    return "free"
 
 
 def save_analysis(sb, job_label, overall_score, result_dict, flags_list):

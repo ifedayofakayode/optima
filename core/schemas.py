@@ -18,3 +18,13 @@ class AnalysisResult(BaseModel):
     achievements_level: int = Field(ge=1, le=5)
     strengths: List[str]
     top_fixes: List[str]
+
+class Rewrite(BaseModel):
+    approach: str   # for example "Results first"
+    text: str
+
+
+class RewriteResult(BaseModel):
+    problems: List[str]
+    rewrites: List[Rewrite]
+    metric_questions: List[str]

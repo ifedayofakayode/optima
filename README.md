@@ -18,6 +18,9 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - ✅ Integrated Supabase database for saving analysis history
 - ✅ Added usage tracking with free monthly limits
 - ✅ Implemented analysis history retrieval and management
+- ✅ Built AI-powered bullet rewriter with number invention detection
+- ✅ Integrated Sentry for production error monitoring
+- ✅ Increased free tier limits (20 analyses, 30 rewrites per month)
 
 ---
 
@@ -39,6 +42,15 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - **Strengths and Top Fixes:** Shows what the resume already does well, plus specific changes to make.
 - **Result Caching:** Submitting the same resume and job description again returns the same result instantly, without another AI call (fixed to check cache before API call).
 
+**Bullet Rewriter**
+- **AI-Powered Bullet Enhancement:** Transforms weak resume bullets into stronger, impact-focused versions using AI.
+- **Number Invention Detection:** Automatically detects and blocks rewrites that invent numbers not present in the original, ensuring honesty.
+- **Bracketed Placeholders:** Uses [square brackets] for any numbers that need to be filled in, helping users identify where to add their real metrics.
+- **Multiple Rewrite Approaches:** Provides 3 different rewrite styles: "Results first", "Action and scope", and "Concise".
+- **Weakness Analysis:** Identifies specific weaknesses in the original bullet and provides targeted questions to help users find their real numbers.
+- **Optional PDF Bullet Extraction:** Users can upload their resume PDF to automatically extract and select bullet points for rewriting.
+- **Safety Filtering:** Only returns rewrites that don't invent numbers, with automatic retry logic if the AI produces unsafe content.
+
 **Remote Application Readiness**
 - **Rule-Based Checks:** Uses fixed rules (not AI) to check for common CV habits that hurt remote applications, ensuring consistent results and no API costs.
 - **Personal Details Detection:** Flags unnecessary personal information (date of birth, age, marital status, religion, state of origin) that remote employers don't expect.
@@ -53,7 +65,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - **Session Management:** Maintains user sessions across page interactions.
 - **Password Security:** Enforces minimum password length (8 characters).
 - **Analysis History:** Saves all resume analyses to Supabase database for later review.
-- **Usage Tracking:** Tracks monthly usage with free-tier limits (2 analyses per month).
+- **Usage Tracking:** Tracks monthly usage with free-tier limits (20 analyses and 30 rewrites per month).
 - **History Management:** Users can view, delete, and manage their saved analyses.
 
 **Reliability and safety**
@@ -63,6 +75,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - **Error Handling:** API timeouts and failures show a friendly message instead of crashing the app, with specific exception handling for better debugging.
 - **Input Validation:** PDF files are validated before processing to prevent crashes from invalid uploads.
 - **Structured Logging:** All errors and warnings are logged with timestamps and severity levels for production debugging.
+- **Production Error Monitoring:** Integrated Sentry SDK to capture and report exceptions for real-time production debugging and error tracking.
 
 ---
 
@@ -74,7 +87,9 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - [Supabase](https://supabase.com/) — user authentication and database
 - [Pydantic](https://docs.pydantic.dev/) — validation of the AI's structured output
 - [PyMuPDF](https://pymupdf.readthedocs.io/) — text extraction from PDF resumes
+- [python-docx](https://python-docx.readthedocs.io/) — Word document processing
 - [python-dotenv](https://pypi.org/project/python-dotenv/) — secure API key management
+- [Sentry SDK](https://sentry.io/) — production error monitoring
 - [pytest](https://docs.pytest.org/) — unit testing framework
 
 ---
@@ -184,30 +199,32 @@ CREATE POLICY "Users can delete their own analyses"
 
 ```
 optima/
-├── main.py                # Streamlit interface with authentication and analysis
+├── main.py                # Streamlit interface with authentication, analysis, and bullet rewriter
 ├── benchmark.py          # Performance benchmarking tools
 ├── core/
 │   ├── __init__.py
 │   ├── pdf_reader.py      # PDF text extraction, layout inspection, and scanned-PDF detection
 │   ├── prompts.py         # All AI prompt text, including security rules
 │   ├── llm.py             # OpenAI calls, validation and retry with logging
-│   ├── schemas.py         # Pydantic models describing a valid analysis
+│   ├── schemas.py         # Pydantic models describing a valid analysis and rewrite results
 │   ├── scoring.py         # Weighted overall score, score labels, and readiness scoring
 │   ├── safety.py          # Prompt injection cleaning and detection (regex optimized)
-│   └── rules.py           # Rule-based checks for remote application readiness
+│   ├── rules.py           # Rule-based checks for remote application readiness
+│   └── rewriter.py        # AI-powered bullet rewriter with number invention detection
 ├── services/
 │   ├── __init__.py
 │   ├── auth.py            # User authentication with Supabase
 │   └── db.py              # Database operations (usage tracking, analysis history)
 ├── tests/
-│   └── test_rules.py      # Unit tests for rule-based checks
+│   ├── test_rules.py      # Unit tests for rule-based checks
+│   └── test_rewriter.py    # Unit tests for bullet rewriter
 ├── requirements.txt       # Dependencies
 ├── .env.example           # API key template (safe to commit)
 ├── .gitignore             # Keeps .env out of GitHub
 └── README.md              # Project documentation
 ```
 
-The `core/` folder contains the app's logic and never imports Streamlit, so it can be reused later (for example in a separate backend) without changes. The `services/` folder handles external integrations like authentication and database operations. The `tests/` folder contains unit tests for rule-based checks.
+The `core/` folder contains the app's logic and never imports Streamlit, so it can be reused later (for example in a separate backend) without changes. The `services/` folder handles external integrations like authentication and database operations. The `tests/` folder contains unit tests for rule-based checks and the bullet rewriter.
 
 ---
 
@@ -227,10 +244,13 @@ Optima is being developed for **African job seekers applying to remote roles**.
 - ✅ Database integration for saving analysis history
 - ✅ Usage tracking with free monthly limits
 - ✅ Analysis history retrieval and management
+- ✅ AI-powered bullet rewriter with number invention detection
+- ✅ Sentry integration for production error monitoring
+- ✅ Increased free tier limits (20 analyses, 30 rewrites per month)
 
 **Planned work:**
 - Enhanced ATS-readability checks (keyword matching, formatting)
-- Bullet-point rewriter and tailored resume export
+- Tailored resume export to Word/DOCX
 - Application tracker
 - Local payment options and pricing
 - Premium tier with higher limits
