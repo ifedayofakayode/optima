@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 from dataclasses import dataclass, field
 from typing import List
 
@@ -21,7 +25,8 @@ def _has_photo(page):
     """Looks for a roughly square, mid-sized picture near the top of page 1."""
     try:
         images = page.get_image_info()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to get image info: {e}")
         return False
 
     for img in images:
@@ -58,7 +63,8 @@ def _has_tables(page):
     """Checks whether the page contains table-like structures."""
     try:
         return len(page.find_tables().tables) > 0
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to detect tables in page: {e}")
         return False
 
 

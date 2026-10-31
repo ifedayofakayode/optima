@@ -1,5 +1,8 @@
 import json
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 from pydantic import ValidationError
 
@@ -35,7 +38,7 @@ def rewrite_bullet(client, bullet, job_context=""):
         try:
             result = RewriteResult.model_validate(json.loads(raw))
         except (json.JSONDecodeError, ValidationError) as e:
-            print(f"Rewrite attempt {attempt}: invalid reply: {str(e)[:300]}")
+            logger.warning(f"Rewrite attempt {attempt}: invalid reply: {str(e)[:300]}")
             prompt += "\n\nYour previous reply was invalid. Return corrected JSON only, in the exact structure above."
             continue
 
@@ -44,7 +47,7 @@ def rewrite_bullet(client, bullet, job_context=""):
             result.rewrites = safe
             return result
 
-        print(f"Rewrite attempt {attempt}: every rewrite contained invented numbers")
+        logger.warning(f"Rewrite attempt {attempt}: every rewrite contained invented numbers")
         prompt += (
             "\n\nYour previous rewrites contained numbers that are not in the original bullet. "
             "Use bracketed placeholders like [X%] instead of any new number."

@@ -7,7 +7,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - ✅ Fixed critical cache logic bug for faster repeat analyses
 - ✅ Optimized PDF text extraction with list comprehensions
 - ✅ Added user authentication with Supabase
-- ✅ Implemented proper logging system
+- ✅ Implemented proper logging system throughout the application
 - ✅ Added input validation and error handling
 - ✅ Optimized string normalization with regex
 - ✅ Added performance benchmarking tools
@@ -21,6 +21,17 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - ✅ Built AI-powered bullet rewriter with number invention detection
 - ✅ Integrated Sentry for production error monitoring
 - ✅ Increased free tier limits (20 analyses, 30 rewrites per month)
+- ✅ Fixed dependency versioning in requirements.txt for stable deployments
+- ✅ Enhanced password policy with complexity requirements (uppercase, lowercase, numbers)
+- ✅ Added email format validation for authentication
+- ✅ Implemented rate limiting (10 calls per minute) to prevent API abuse
+- ✅ Improved cache eviction to use LRU (Least Recently Used) algorithm
+- ✅ Enhanced error messages with context and troubleshooting guidance
+- ✅ Added job label validation to prevent database abuse
+- ✅ Fixed OpenAI model configuration to use valid model names
+- ✅ Improved session security by removing credentials from session state
+- ✅ Expanded test coverage for auth, safety, and scoring modules
+- ✅ Added GitHub Actions CI/CD pipeline for automated testing
 
 ---
 
@@ -40,7 +51,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - **Consistent, Explainable Scoring:** The AI answers simple yes/no checks and rates experience and achievements on a defined 1-5 scale. The overall score is then calculated in code with fixed weights (requirements 60%, experience 25%, achievements 15%), with a plain-language label such as "Good match, with gaps to fix".
 - **Prioritized Missing Requirements:** Each gap is marked high, medium or low priority, with a suggestion for adding it truthfully.
 - **Strengths and Top Fixes:** Shows what the resume already does well, plus specific changes to make.
-- **Result Caching:** Submitting the same resume and job description again returns the same result instantly, without another AI call (fixed to check cache before API call).
+- **Result Caching:** Submitting the same resume and job description again returns the same result instantly, without another AI call. Uses LRU (Least Recently Used) eviction to keep frequently-used results in cache.
 
 **Bullet Rewriter**
 - **AI-Powered Bullet Enhancement:** Transforms weak resume bullets into stronger, impact-focused versions using AI.
@@ -63,9 +74,11 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 **User Accounts**
 - **Secure Authentication:** User sign-up and sign-in with email/password using Supabase.
 - **Session Management:** Maintains user sessions across page interactions.
-- **Password Security:** Enforces minimum password length (8 characters).
+- **Password Security:** Enforces strong password requirements (8+ characters with uppercase, lowercase, and numbers).
+- **Email Validation:** Validates email format before submission to prevent errors.
 - **Analysis History:** Saves all resume analyses to Supabase database for later review.
 - **Usage Tracking:** Tracks monthly usage with free-tier limits (20 analyses and 30 rewrites per month).
+- **Rate Limiting:** Implements rate limiting (10 calls per minute) to prevent API abuse.
 - **History Management:** Users can view, delete, and manage their saved analyses.
 
 **Reliability and safety**
@@ -112,6 +125,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
    OPENAI_API_KEY=your_openai_api_key_here
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_ANON_KEY=your_supabase_anon_key_here
+   OPENAI_MODEL=gpt-4o-mini  # Optional: defaults to gpt-4o-mini if not set
 ```
 
    **To get Supabase credentials:**
@@ -130,6 +144,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
    OPENAI_API_KEY = "your_openai_api_key_here"
    SUPABASE_URL = "https://your-project-id.supabase.co"
    SUPABASE_ANON_KEY = "your_supabase_anon_key_here"
+   OPENAI_MODEL = "gpt-4o-mini"  # Optional
 ```
 4. **Run the app**
 ```
@@ -140,6 +155,8 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 ```
    pytest tests/
 ```
+
+**Note:** The project includes a GitHub Actions workflow that automatically runs tests on push and pull requests to ensure code quality.
 
 ---
 
@@ -152,8 +169,13 @@ After setting up your Supabase project, you need to create the required tables. 
 CREATE TABLE public.usage (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    kind TEXT DEFAULT 'analysis',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- If you already have a usage table without the 'kind' column, run this migration:
+ALTER TABLE public.usage ADD COLUMN kind TEXT DEFAULT 'analysis';
+UPDATE public.usage SET kind = 'analysis' WHERE kind IS NULL;
 
 -- Create the analyses table (stores analysis results)
 CREATE TABLE public.analyses (
@@ -195,7 +217,13 @@ CREATE POLICY "Users can delete their own analyses"
 
 ---
 
-### 📂 Project Structure
+### � Database Migrations
+
+Database schema changes are tracked in `MIGRATIONS.md`. When deploying updates, check this file for any SQL commands that need to be run on your Supabase database.
+
+---
+
+### �📂 Project Structure
 
 ```
 optima/
@@ -217,10 +245,14 @@ optima/
 │   └── db.py              # Database operations (usage tracking, analysis history)
 ├── tests/
 │   ├── test_rules.py      # Unit tests for rule-based checks
-│   └── test_rewriter.py    # Unit tests for bullet rewriter
-├── requirements.txt       # Dependencies
+│   ├── test_rewriter.py   # Unit tests for bullet rewriter
+│   ├── test_auth.py       # Unit tests for authentication validation
+│   ├── test_safety.py     # Unit tests for prompt injection detection
+│   └── test_scoring.py    # Unit tests for scoring algorithms
+├── requirements.txt       # Dependencies with version pins
 ├── .env.example           # API key template (safe to commit)
 ├── .gitignore             # Keeps .env out of GitHub
+├── MIGRATIONS.md          # Database schema change history
 └── README.md              # Project documentation
 ```
 
@@ -247,6 +279,15 @@ Optima is being developed for **African job seekers applying to remote roles**.
 - ✅ AI-powered bullet rewriter with number invention detection
 - ✅ Sentry integration for production error monitoring
 - ✅ Increased free tier limits (20 analyses, 30 rewrites per month)
+- ✅ Dependency versioning for stable deployments
+- ✅ Enhanced password security with complexity requirements
+- ✅ Email validation for authentication
+- ✅ Rate limiting to prevent API abuse
+- ✅ LRU cache implementation for better performance
+- ✅ Improved error messages with context
+- ✅ Session security improvements
+- ✅ Expanded test coverage
+- ✅ CI/CD pipeline with automated testing
 
 **Planned work:**
 - Enhanced ATS-readability checks (keyword matching, formatting)
@@ -254,6 +295,7 @@ Optima is being developed for **African job seekers applying to remote roles**.
 - Application tracker
 - Local payment options and pricing
 - Premium tier with higher limits
+- Additional test coverage for database and authentication flows
 
 ---
 
