@@ -44,7 +44,7 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 
 ### 🚀 Live Demo
 
-👉 [Launch the App](https://optima-ai-resume-analyzer.streamlit.app/)
+👉 [Launch the App](https://tryoptimanow.streamlit.app/)
 
 ---
 
