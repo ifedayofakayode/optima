@@ -4,8 +4,10 @@ logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass, field
 from typing import List
+from io import BytesIO
 
 import pymupdf  # PyMuPDF, the library that reads PDF files
+from docx import Document
 
 MIN_TEXT_LENGTH = 200  # fewer characters than this means the PDF is probably a scan
 
@@ -98,3 +100,16 @@ def inspect_pdf(pdf_bytes):
 def has_readable_text(text):
     """Returns True if the text is long enough to be a real resume."""
     return len(text.strip()) >= MIN_TEXT_LENGTH
+
+
+def read_docx(docx_bytes: bytes) -> str:
+    """Extract text from a DOCX file."""
+    try:
+        doc = Document(BytesIO(docx_bytes))
+        text = []
+        for paragraph in doc.paragraphs:
+            text.append(paragraph.text)
+        return "\n".join(text)
+    except Exception as e:
+        logger.error(f"Failed to read DOCX: {e}")
+        return ""

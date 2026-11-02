@@ -32,6 +32,13 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - ✅ Improved session security by removing credentials from session state
 - ✅ Expanded test coverage for auth, safety, and scoring modules
 - ✅ Added GitHub Actions CI/CD pipeline for automated testing
+- ✅ **Implemented Gap Confirmation Flow** - Users can confirm missing skills/experience before generation
+- ✅ **Built Tailored Resume Generation** - AI-powered resume rewriting with fabrication guardrails
+- ✅ **Added Cover Letter Generation** - Non-generic, evidence-based cover letters with banned phrase detection
+- ✅ **Implemented Resume Parsing** - Structured extraction of resume data using LLM
+- ✅ **Enhanced Analysis Output** - Added ATS score, keyword grouping, critical gaps, and format issues
+- ✅ **Added PDF Export** - Automated PDF generation with selectable text
+- ✅ **Added DOCX Upload Support** - Users can now upload both PDF and DOCX resumes
 
 ---
 
@@ -44,11 +51,14 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 ### 🧠 Features
 
 **Analysis**
-- **PDF Resume Processing:** Extracts text from uploaded PDF resumes with optimized string handling for faster processing.
+- **PDF & DOCX Resume Processing:** Extracts text from uploaded PDF or DOCX resumes with optimized string handling for faster processing.
 - **PDF Layout Inspection:** Detects layout issues that hurt ATS readability (photos, multi-column layouts, tables) and provides specific fixes.
 - **Scanned PDF Detection:** Detects image-only PDFs with no readable text and tells the user how to fix it, instead of sending empty text to the AI.
 - **Requirements Checklist:** The AI lists the 10 most important requirements in the job description and marks each one as found or not found in the resume, quoting the evidence. Users can open the full checklist to see exactly why they were scored the way they were.
 - **Consistent, Explainable Scoring:** The AI answers simple yes/no checks and rates experience and achievements on a defined 1-5 scale. The overall score is then calculated in code with fixed weights (requirements 60%, experience 25%, achievements 15%), with a plain-language label such as "Good match, with gaps to fix".
+- **ATS Score Analysis:** Provides an ATS compatibility score (0-100) with explanation, identifying format issues and keyword gaps that could hurt ATS parsing.
+- **Keyword Grouping:** Separates missing keywords into must-have vs nice-to-have categories for prioritized improvement.
+- **Critical Gaps Identification:** Highlights requirements that, if missing, would likely cause rejection vs general improvement suggestions.
 - **Prioritized Missing Requirements:** Each gap is marked high, medium or low priority, with a suggestion for adding it truthfully.
 - **Strengths and Top Fixes:** Shows what the resume already does well, plus specific changes to make.
 - **Result Caching:** Submitting the same resume and job description again returns the same result instantly, without another AI call. Uses LRU (Least Recently Used) eviction to keep frequently-used results in cache.
@@ -61,6 +71,33 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 - **Weakness Analysis:** Identifies specific weaknesses in the original bullet and provides targeted questions to help users find their real numbers.
 - **Optional PDF Bullet Extraction:** Users can upload their resume PDF to automatically extract and select bullet points for rewriting.
 - **Safety Filtering:** Only returns rewrites that don't invent numbers, with automatic retry logic if the AI produces unsafe content.
+
+**Gap Confirmation Flow**
+- **Missing Requirements Confirmation:** Presents missing JD requirements as a checklist with Yes/Partially/No options.
+- **Evidence Collection:** For confirmed items, collects user-provided evidence (years, context, projects).
+- **Honesty Summary:** Shows what's kept from original resume, what's added from confirmations, and what's excluded as honest gaps.
+- **Conservative Phrasing:** "Partially" confirmed items are phrased conservatively in generation (e.g., "Familiar with" vs "Expert in").
+- **Traceability:** Only confirmed items flow into resume generation, ensuring 100% traceability of claims.
+
+**Tailored Resume Generation**
+- **AI-Powered Resume Rewriting:** Automatically rewrites resumes to match job descriptions with strong, impact-focused bullets.
+- **Fabrication Guardrails:** Never invents employers, titles, dates, degrees, certifications, tools, skills, or metrics.
+- **Placeholder Metrics:** Uses [X%], [number], [months] style placeholders for missing metrics instead of inventing numbers.
+- **JD Keyword Integration:** Naturally integrates job description keywords without keyword stuffing.
+- **Skills Ordering:** Orders skills by relevance to the job description.
+- **ATS-Friendly Structure:** Ensures single-column layout, standard headings, no tables/columns/photos.
+- **Inline Editing:** Full inline editing of all resume sections before download.
+- **Dual Export:** Download as both DOCX and PDF with selectable text.
+
+**Cover Letter Generation**
+- **Non-Generic Generation:** Creates tailored cover letters based on resume profile, JD, and confirmed items.
+- **Evidence-Based Content:** Each body paragraph references specific JD requirements and concrete achievements.
+- **Banned Phrase Detection:** Automatically avoids 13 common clichés like "passionate team player" and "I am writing to express my interest".
+- **Structured Format:** Enforces hook → 2 evidence-based body paragraphs → brief closing structure.
+- **Word Count Target:** Targets 250-350 words with validation and display.
+- **Optional Customization:** Supports tone selection (professional, warm, confident), hiring manager name, and "why this company" input.
+- **Inline Editing:** Full-text and individual section editing before download.
+- **DOCX Export:** Properly formatted cover letter document export.
 
 **Remote Application Readiness**
 - **Rule-Based Checks:** Uses fixed rules (not AI) to check for common CV habits that hurt remote applications, ensuring consistent results and no API costs.
