@@ -133,11 +133,12 @@ Optima is a web application that uses a large language model (LLM) to analyze ho
 
 - [Python 3](https://www.python.org/)
 - [Streamlit](https://streamlit.io/) — web interface
-- [OpenAI API](https://platform.openai.com/) — resume and job description analysis
+- [OpenAI API](https://platform.openai.com/) — resume and job description analysis, resume parsing, and content generation
 - [Supabase](https://supabase.com/) — user authentication and database
 - [Pydantic](https://docs.pydantic.dev/) — validation of the AI's structured output
 - [PyMuPDF](https://pymupdf.readthedocs.io/) — text extraction from PDF resumes
-- [python-docx](https://python-docx.readthedocs.io/) — Word document processing
+- [python-docx](https://python-docx.readthedocs.io/) — Word document processing and DOCX text extraction
+- [ReportLab](https://reportlab.com/) — PDF generation with selectable text
 - [python-dotenv](https://pypi.org/project/python-dotenv/) — secure API key management
 - [Sentry SDK](https://sentry.io/) — production error monitoring
 - [pytest](https://docs.pytest.org/) — unit testing framework
@@ -264,18 +265,20 @@ Database schema changes are tracked in `MIGRATIONS.md`. When deploying updates, 
 
 ```
 optima/
-├── main.py                # Streamlit interface with authentication, analysis, and bullet rewriter
+├── main.py                # Streamlit interface with authentication, analysis, resume generation, and cover letter generation
 ├── benchmark.py          # Performance benchmarking tools
 ├── core/
 │   ├── __init__.py
-│   ├── pdf_reader.py      # PDF text extraction, layout inspection, and scanned-PDF detection
-│   ├── prompts.py         # All AI prompt text, including security rules
-│   ├── llm.py             # OpenAI calls, validation and retry with logging
-│   ├── schemas.py         # Pydantic models describing a valid analysis and rewrite results
+│   ├── pdf_reader.py      # PDF & DOCX text extraction, layout inspection, and scanned-PDF detection
+│   ├── prompts.py         # All AI prompt text, including security rules, resume parsing, and generation prompts
+│   ├── llm.py             # OpenAI calls, validation and retry with logging (analysis, parsing, generation)
+│   ├── schemas.py         # Pydantic models for analysis, resumes, cover letters, and confirmation data
 │   ├── scoring.py         # Weighted overall score, score labels, and readiness scoring
 │   ├── safety.py          # Prompt injection cleaning and detection (regex optimized)
 │   ├── rules.py           # Rule-based checks for remote application readiness
-│   └── rewriter.py        # AI-powered bullet rewriter with number invention detection
+│   ├── rewriter.py        # AI-powered bullet rewriter with number invention detection
+│   ├── confirmation.py    # Gap confirmation flow logic and item extraction
+│   └── exporter.py        # DOCX and PDF export with ATS-friendly formatting
 ├── services/
 │   ├── __init__.py
 │   ├── auth.py            # User authentication with Supabase
@@ -325,13 +328,29 @@ Optima is being developed for **African job seekers applying to remote roles**.
 - ✅ Session security improvements
 - ✅ Expanded test coverage
 - ✅ CI/CD pipeline with automated testing
+- ✅ **Gap Confirmation Flow** - Core differentiator for honest skill claims
+- ✅ **Tailored Resume Generation** - AI-powered resume rewriting with fabrication guardrails
+- ✅ **Cover Letter Generation** - Non-generic, evidence-based cover letters
+- ✅ **Resume Parsing** - Structured extraction of resume data using LLM
+- ✅ **Enhanced Analysis Output** - ATS score, keyword grouping, critical gaps, format issues
+- ✅ **PDF Export** - Automated PDF generation with selectable text
+- ✅ **DOCX Upload Support** - Support for both PDF and DOCX resume uploads
 
 **Planned work:**
-- Enhanced ATS-readability checks (keyword matching, formatting)
-- Tailored resume export to Word/DOCX
-- Application tracker
-- Local payment options and pricing
-- Premium tier with higher limits
+- Google Sign-In authentication
+- Editing and review screen with accept/reject per bullet
+- Payments integration (Paystack/Flutterwave) with local currency pricing
+- Job description parsing (structured extraction of requirements)
+- Profile management (name, country, target role fields)
+- Dashboard enhancements (document re-download, duplicate, delete)
+- Privacy policy and terms of service pages
+- OCR support for scanned PDFs
+- Multiple ATS-safe resume templates
+- Master profile feature for reuse across applications
+- Application tracker with status management
+- Regional presets (US resume, UK CV, EU/Europass, Gulf formats)
+- LinkedIn optimization features
+- Mock interview practice with AI
 - Additional test coverage for database and authentication flows
 
 ---
